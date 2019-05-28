@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <integer name ="login" format="integer">100</integer>
+    <integer type ="id" name="send" format="integer">110</integer>
+    <integer type = "id" name="changeKey" format="integer">120</integer>
+</resources>
