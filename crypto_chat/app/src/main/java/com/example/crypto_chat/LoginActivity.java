@@ -96,12 +96,12 @@ public class LoginActivity extends Activity {
         mPasswordView.setError(null);
         mEncryptKeyView.setError(null);
 
-        String militaryId = mIdView.getText().toString().trim();
+        String studentId = mIdView.getText().toString().trim();
         String password = mPasswordView.getText().toString().trim();
         final String encryptKey = mEncryptKeyView.getText().toString().trim();
 
         // 각각의 폼이 비어있을 경우 에러발생 및 알려줌
-        if (TextUtils.isEmpty(militaryId)) {
+        if (TextUtils.isEmpty(studentId)) {
             mIdView.setError(getString(R.string.error_field_required));
             mIdView.requestFocus();
             return;
@@ -118,7 +118,7 @@ public class LoginActivity extends Activity {
         }
 
 
-        militaryId = mIdView.getText().toString();
+        studentId = mIdView.getText().toString();
         password = mPasswordView.getText().toString();
 
         // 패스워드를 서버에 보내 확인하기 전에 SHA-256으로 해시로 만듬
@@ -130,8 +130,8 @@ public class LoginActivity extends Activity {
 
 
         // get으로 ID와 해시화 된 password를 서버에 보내고 응답을 받음
-        log.i("test", "Url : " + SERVER_IP +"loginCheck/?militaryId=" + militaryId + "&password=" + passwordHashInput);
-        client.get( SERVER_IP +"loginCheck/?militaryId=" + militaryId + "&password=" + passwordHashInput, new AsyncHttpResponseHandler() {
+        log.i("test", "Url : " + SERVER_IP +"loginCheck/?studentId=" + studentId + "&password=" + passwordHashInput);
+        client.get( SERVER_IP +"loginCheck/?studentId=" + studentId + "&password=" + passwordHashInput, new AsyncHttpResponseHandler() {
             @RequiresApi(api = Build.VERSION_CODES.KITKAT)
             @Override
             public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {

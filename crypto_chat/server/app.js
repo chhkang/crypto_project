@@ -7,13 +7,11 @@ var mysql = require('mysql');
 var port = process.env.PORT || 8080;
 
 var connection = mysql.createConnection({
-    host: 'localhost',
+    host: 'localhost:3306',
     query: {
         pool: true
     },
     user: 'root',
-    password: 'root',
-    database: 'osam'
 });
 
 app.get('/', function(req, res) {
@@ -31,7 +29,7 @@ app.use(express.static(__dirname + '/public'));
 // Login
 app.get('/loginCheck/', function(req, res) {
 
-    var sql = 'SELECT name FROM kanghojun_login WHERE ID = "' + req.query.militaryId + '" AND PASSWORD = "' + req.query.password + '"';
+    var sql = 'SELECT name FROM kanghojun_login WHERE ID = "' + req.query.studentId + '" AND PASSWORD = "' + req.query.password + '"';
     connection.query(sql, function(err, rows, fields) {
         if (err) {
             res.sendStatus(400);
