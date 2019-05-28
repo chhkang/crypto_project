@@ -12,6 +12,9 @@ var connection = mysql.createConnection({
         pool: true
     },
     user: 'root',
+    password: 'root',
+    database: 'osam'
+
 });
 
 app.get('/', function(req, res) {
