@@ -7,18 +7,26 @@ var mysql = require('mysql');
 var port = process.env.PORT || 8080;
 
 var connection = mysql.createConnection({
-    host: 'localhost:3306',
+    host: 'localhost',
     query: {
         pool: true
     },
     user: 'root',
-    password: 'root',
-    database: 'osam'
+    password: '201620937q',
+    database: 'security'
 
 });
-
+connection.connect( function(err){
+    if (err){
+        throw err;
+    }
+    else {
+        console.log('Connected');
+    }
+});
 app.get('/', function(req, res) {
     res.sendFile(__dirname + '/index.html');
+
 });
 
 server.listen(port, function() {
@@ -32,7 +40,7 @@ app.use(express.static(__dirname + '/public'));
 // Login
 app.get('/loginCheck/', function(req, res) {
 
-    var sql = 'SELECT name FROM kanghojun_login WHERE ID = "' + req.query.studentId + '" AND PASSWORD = "' + req.query.password + '"';
+    var sql = 'SELECT name FROM login WHERE ID = "' + req.query.studentId + '" AND PASSWORD = "' + req.query.password + '"';
     connection.query(sql, function(err, rows, fields) {
         if (err) {
             res.sendStatus(400);

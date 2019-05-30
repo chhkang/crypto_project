@@ -109,12 +109,13 @@ public class MainFragment extends Fragment {
         mSocket.connect();
 
         startSignIn(); //LoginActivity 띄워줌
+
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_main, container, false);
+        return inflater.inflate(R.layout.fragment_chat, container, false);
     }
 
 
@@ -190,7 +191,7 @@ public class MainFragment extends Fragment {
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-
+        Log.e("data:",""+data);
         // LoginActivity 에서 돌아온 경우 requestCode == REQUEST_LOGIN
         // ChangeKeyActivity 에서 돌아온 경우 requestCode == REQUEST_KEY
         if (requestCode == REQUEST_LOGIN) {
@@ -199,7 +200,7 @@ public class MainFragment extends Fragment {
                 return;
             }
 
-            mUsername = data.getStringExtra("username");
+            mUsername = data.getStringExtra("Name");
             // 입력한 암호키로 AES-256에 필요한 해시를 만듭니다
             mEncryptKey = data.getStringExtra("encrypt_key");
             try {
@@ -292,7 +293,7 @@ public class MainFragment extends Fragment {
     }
 
     private void attemptSend() {
-        if (null == mUsername) return;
+        if (mUsername==null) return;
         if (!mSocket.connected()) return;
 
         mTyping = false;
@@ -372,7 +373,6 @@ public class MainFragment extends Fragment {
         }
         return aes256Decode;
     }
-
     private void startSignIn() {
         mUsername = null;
         Intent intent = new Intent(getActivity(), LoginActivity.class);

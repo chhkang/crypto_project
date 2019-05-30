@@ -3,11 +3,13 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:id="@+id/container"
     tools:context=".MainActivity">
 
     <fragment
-        class = "com.example.crypto_chat.MainFragment"
-        android:id="@+id/main"
+        class = "com.example.crypto_chat.SignUpFragment"
+        android:id="@+id/sign_up"
         android:layout_width="match_parent"
         android:layout_height="match_parent"/>
+
 </android.support.constraint.ConstraintLayout>
