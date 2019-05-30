@@ -3,7 +3,7 @@
 
     <string name="app_name">CryptoChat</string>
     <string name="action_leave">로그아웃</string>
-    <string name="action_skip">skip하기</string>
+    <string name="action_skip">skip</string>
     <string name="action_changeKey">암호키 변경</string>
     <string name="action_send">전송</string>
     <string name="prompt_message">메세지</string>
