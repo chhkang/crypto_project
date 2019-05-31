@@ -5,6 +5,12 @@
         android:layout_height="match_parent"
         android:orientation="vertical"
         tools:context=".MainFragment">
+    <ImageButton
+        android:id="@+id/refresh_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/ic_refresh"
+        android:layout_marginLeft="360dp"/>
 
     <android.support.v7.widget.RecyclerView
             android:id="@+id/messages"

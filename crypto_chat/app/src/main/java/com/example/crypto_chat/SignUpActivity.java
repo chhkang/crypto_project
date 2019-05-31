@@ -2,16 +2,12 @@ package com.example.crypto_chat;
 
 import android.os.Build;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.annotation.RequiresApi;
-import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentTransaction;
+import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 
@@ -23,45 +19,46 @@ import cz.msebera.android.httpclient.Header;
 
 import static com.example.crypto_chat.ServerIPConfig.SERVER_IP;
 
-public class SignUpFragment extends Fragment {
+public class SignUpActivity extends AppCompatActivity {
     private Button sumbit_btn;
     private Button skip_btn;
     private EditText input_id;
     private EditText input_name;
     private EditText input_pwd;
     private String passwordHashInput;
-
+    private SignUpActivity signUpFragment;
     SHA256Util sha256Util = new SHA256Util();
     private static AsyncHttpClient client = new AsyncHttpClient();
 
-
-    @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_signup,container,false);
-        input_id = view.findViewById(R.id.id_input);
-        input_name= view.findViewById(R.id.name_input);
-        input_pwd = view.findViewById(R.id.password_input);
-        skip_btn = view.findViewById(R.id.sign_up_skip_button);
+    public void onBackPressed() {
+//        super.onBackPressed();
+    }
+
+    @Override
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.fragment_signup);
+        signUpFragment= this;
+        input_id = findViewById(R.id.id_input);
+        input_name= findViewById(R.id.name_input);
+        input_pwd = findViewById(R.id.password_input);
+        skip_btn = findViewById(R.id.sign_up_skip_button);
         skip_btn.setOnClickListener(new Button.OnClickListener(){
             @Override
             public void onClick(View v) {
-                Fragment mainFragment = new MainFragment();
-                FragmentTransaction transaction = getFragmentManager().beginTransaction();
-                transaction.replace(R.id.container ,mainFragment);
-                transaction.addToBackStack(null);
-                transaction.commit();
+                finish();
             }
         });
-        sumbit_btn = view.findViewById(R.id.sign_up_button);
+        sumbit_btn = findViewById(R.id.sign_up_button);
         sumbit_btn.setOnClickListener(new Button.OnClickListener() {
             @Override
             public void onClick(View view) {
                 attemptsignin();
             }
         });
-        return view;
     }
+
     private void attemptsignin() {
         // 에러를 리셋 (전에 에러가 나서 다시 실행할 경우 이미 에러가 set 되있음)
         input_id.setError(null);
@@ -111,11 +108,7 @@ public class SignUpFragment extends Fragment {
                 int statusCodeReceived = statusCode;
                 if(statusCodeReceived == 201){
                     Log.e("status","success");
-                    Fragment mainFragment = new MainFragment();
-                    FragmentTransaction transaction = getFragmentManager().beginTransaction();
-                    transaction.replace(R.id.container ,mainFragment);
-                    transaction.addToBackStack(null);
-                    transaction.commit();
+                    finish();
                     return;
                 }
                 else{

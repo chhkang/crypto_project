@@ -7,7 +7,7 @@
     tools:context=".MainActivity">
 
     <fragment
-        class = "com.example.crypto_chat.SignUpFragment"
+        class = "com.example.crypto_chat.MainFragment"
         android:id="@+id/sign_up"
         android:layout_width="match_parent"
         android:layout_height="match_parent"/>

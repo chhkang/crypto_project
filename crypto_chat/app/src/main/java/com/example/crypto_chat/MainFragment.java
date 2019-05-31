@@ -110,9 +110,9 @@ public class MainFragment extends Fragment {
         mSocket.on("typing", onTyping);
         mSocket.on("stop typing", onStopTyping);
         mSocket.connect();
-
-        startSignIn(); //LoginActivity 띄워줌
-
+        startSignIn();
+        Intent intent = new Intent(this.getContext(),SignUpActivity.class);
+        startActivity(intent);
     }
 
     @Override
