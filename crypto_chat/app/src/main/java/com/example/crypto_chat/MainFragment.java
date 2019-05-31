@@ -3,8 +3,10 @@ package com.example.crypto_chat;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.annotation.RequiresApi;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -23,8 +25,14 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
-import android.widget.Toast;
+import static com.example.crypto_chat.ServerIPConfig.SERVER_IP;
+import cz.msebera.android.httpclient.Header;
 
+
+import com.loopj.android.http.AsyncHttpClient;
+import com.loopj.android.http.AsyncHttpResponseHandler;
+
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -44,36 +52,33 @@ import io.socket.client.Socket;
 import io.socket.client.SocketIOException;
 import io.socket.emitter.Emitter;
 
+import static com.loopj.android.http.AsyncHttpClient.log;
+
 
 /**
  * A chat fragment containing messages view and input form.
  */
 public class MainFragment extends Fragment {
 
-
     private static final String TAG = "MainFragment";
-
     private static final int REQUEST_LOGIN = 0;
     private static final int REQUEST_KEY = 1;
-
-    private static final int TYPING_TIMER_LENGTH = 600;
-
+    private ImageButton refresh_btn;
+    private ImageButton decrypt_btn;
     private RecyclerView mMessagesView;
     private EditText mInputMessageView;
     private List<Message> mMessages = new ArrayList<Message>();
     private RecyclerView.Adapter mAdapter;
-    private boolean mTyping = false;
-    private Handler mTypingHandler = new Handler();
     private String mUsername;
     private String mEncryptKey;
+
     // SHA-256 해쉬 변수의 초기값을 지정해주지 않으면 LoginActivity에서 key 입력전에 메세지가 오면
     // AES 디코딩할때 key로 null값을 가져가서 AES256 디코드에 에러가 발생하여 앱이 크래시
     private String mEncryptSHA = "0000000000000000000000000000000000000000000000000000000000000000";
-    private Socket mSocket;
+//    private Socket mSocket;
+    private static AsyncHttpClient client = new AsyncHttpClient();
 
     SHA256Util sha256Util = new SHA256Util();
-
-    private Boolean isConnected = true;
 
     public MainFragment() {
         super();
@@ -85,31 +90,15 @@ public class MainFragment extends Fragment {
     public void onAttach(Context context) {
         super.onAttach(context);
         mAdapter = new MessageAdapter(context, mMessages);
-        if (context instanceof Activity){
-
-        }
+        if (context instanceof Activity){ }
     }
 
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         setHasOptionsMenu(true);
-
-        ChatApplication app = (ChatApplication) getActivity().getApplication();
-        mSocket = app.getSocket();
-//        Log.e("msocket",""+mSocket);
-        mSocket.on(Socket.EVENT_CONNECT,onConnect);
-        mSocket.on(Socket.EVENT_DISCONNECT,onDisconnect);
-        mSocket.on(Socket.EVENT_CONNECT_ERROR, onConnectError);
-        mSocket.on(Socket.EVENT_CONNECT_TIMEOUT, onConnectError);
-        mSocket.on("new message", onNewMessage);
-        mSocket.on("user joined", onUserJoined);
-        mSocket.on("user left", onUserLeft);
-        mSocket.on("typing", onTyping);
-        mSocket.on("stop typing", onStopTyping);
-        mSocket.connect();
+        getchatlist();
         startSignIn();
         Intent intent = new Intent(this.getContext(),SignUpActivity.class);
         startActivity(intent);
@@ -120,24 +109,6 @@ public class MainFragment extends Fragment {
         return inflater.inflate(R.layout.fragment_chat, container, false);
     }
 
-
-    // 종료시 socket 을 끔
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-
-        mSocket.disconnect();
-        mSocket.off(Socket.EVENT_CONNECT, onConnect);
-        mSocket.off(Socket.EVENT_DISCONNECT, onDisconnect);
-        mSocket.off(Socket.EVENT_CONNECT_ERROR, onConnectError);
-        mSocket.off(Socket.EVENT_CONNECT_TIMEOUT, onConnectError);
-        mSocket.off("new message", onNewMessage);
-        mSocket.off("user joined", onUserJoined);
-        mSocket.off("user left", onUserLeft);
-        mSocket.off("typing", onTyping);
-        mSocket.off("stop typing", onStopTyping);
-    }
-
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
@@ -146,12 +117,30 @@ public class MainFragment extends Fragment {
         mMessagesView.setLayoutManager(new LinearLayoutManager(getActivity()));
         mMessagesView.setAdapter(mAdapter);
 
+        refresh_btn = (ImageButton) view.findViewById(R.id.refresh_button);
+        refresh_btn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                clearchatlist();
+                decrypt_btn.setEnabled(true);
+            }
+        });
+        decrypt_btn = (ImageButton) view.findViewById(R.id.decrypt_button);
+        decrypt_btn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                decrypt_message();
+                decrypt_btn.setEnabled(false);
+            }
+
+        });
         mInputMessageView = (EditText) view.findViewById(R.id.message_input);
         mInputMessageView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView v, int id, KeyEvent event) {
                 if (id == R.integer.send || id == EditorInfo.IME_NULL) {
                     attemptSend();
+                    decrypt_btn.setEnabled(false);
                     return true;
                 }
                 return false;
@@ -165,15 +154,6 @@ public class MainFragment extends Fragment {
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
                 if (null == mUsername) return;
-                if (!mSocket.connected()) return;
-
-                if (!mTyping) {
-                    mTyping = true;
-                    mSocket.emit("typing");
-                }
-
-                mTypingHandler.removeCallbacks(onTypingTimeout);
-                mTypingHandler.postDelayed(onTypingTimeout, TYPING_TIMER_LENGTH);
             }
 
             @Override
@@ -186,6 +166,7 @@ public class MainFragment extends Fragment {
             @Override
             public void onClick(View v) {
                 attemptSend();
+                decrypt_btn.setEnabled(false);
             }
         });
     }
@@ -193,7 +174,7 @@ public class MainFragment extends Fragment {
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        Log.e("data:",""+data);
+//        Log.e("data:",""+data);
         // LoginActivity 에서 돌아온 경우 requestCode == REQUEST_LOGIN
         // ChangeKeyActivity 에서 돌아온 경우 requestCode == REQUEST_KEY
         if (requestCode == REQUEST_LOGIN) {
@@ -202,7 +183,7 @@ public class MainFragment extends Fragment {
                 return;
             }
 
-            mUsername = data.getStringExtra("Name");
+            mUsername = data.getStringExtra("username");
             // 입력한 암호키로 AES-256에 필요한 해시를 만듭니다
             mEncryptKey = data.getStringExtra("encrypt_key");
             try {
@@ -210,13 +191,11 @@ public class MainFragment extends Fragment {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            int numUsers = data.getIntExtra("numUsers", 1);
-            ;
+            int numUsers = 1;
 
             Log.e("test", "Key SHA256 Hash:" + mEncryptSHA);
 
             addLog(getResources().getString(R.string.message_welcome));
-            addParticipantsLog(numUsers);
         } else if (requestCode == REQUEST_KEY){
             if (Activity.RESULT_OK != resultCode) {
                 getActivity().finish();
@@ -258,18 +237,55 @@ public class MainFragment extends Fragment {
 
         return super.onOptionsItemSelected(item);
     }
-
+    private void clearchatlist(){
+        int len = mMessages.size();
+        mMessages.clear();
+        mAdapter.notifyItemRangeRemoved(0,len);
+        getchatlist();
+    }
+    private void decrypt_message() {
+        for (int i = 0; i < mMessages.size(); i++) {
+            String str = mMessages.get(i).getMessage();
+            Log.e("test","origin str"+str);
+            mMessages.get(i).setMessage(aes256MessageDecode(str));
+            mAdapter.notifyItemChanged(i);
+        }
+    }
+    private void getchatlist(){
+        client.get( SERVER_IP +"getMessages/", new AsyncHttpResponseHandler() {
+            @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+            @Override
+            public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
+                int statusCodeReceived = statusCode;
+                if(statusCodeReceived == 201){
+                    Log.e("status","success");
+                    String nameResponse = new String(responseBody);
+                    try {
+                        JSONArray jarray = new JSONArray(nameResponse);
+                        for(int i=0;i< jarray.length();i++){
+                            JSONObject jObject = jarray.getJSONObject(i);
+                            addMessage(jObject.getString("Message_from"),jObject.getString("Message"));
+                        }
+                    }catch (JSONException e){
+                        e.printStackTrace();
+                    }
+                    return;
+                }
+                else{
+                    Log.e("status","error");
+                    return;
+                }
+            }
+            @Override
+            public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) { }
+        });
+    }
     private void addLog(String message) {
         mMessages.add(new Message.Builder(Message.TYPE_LOG)
                 .message(message).build());
         mAdapter.notifyItemInserted(mMessages.size() - 1);
         scrollToBottom();
     }
-
-    private void addParticipantsLog(int numUsers) {
-        addLog(getResources().getQuantityString(R.plurals.message_participants, numUsers, numUsers));
-    }
-
     private void addMessage(String username, String message) {
         mMessages.add(new Message.Builder(Message.TYPE_MESSAGE)
                 .username(username).message(message).build());
@@ -277,29 +293,9 @@ public class MainFragment extends Fragment {
         scrollToBottom();
     }
 
-    private void addTyping(String username) {
-        mMessages.add(new Message.Builder(Message.TYPE_ACTION)
-                .username(username).build());
-        mAdapter.notifyItemInserted(mMessages.size() - 1);
-        scrollToBottom();
-    }
-
-    private void removeTyping(String username) {
-        for (int i = mMessages.size() - 1; i >= 0; i--) {
-            Message message = mMessages.get(i);
-            if (message.getType() == Message.TYPE_ACTION && message.getUsername().equals(username)) {
-                mMessages.remove(i);
-                mAdapter.notifyItemRemoved(i);
-            }
-        }
-    }
-
     private void attemptSend() {
+        Log.e("mUsername",""+mUsername);
         if (mUsername==null) return;
-        if (!mSocket.connected()) return;
-
-        mTyping = false;
-
         String originalMessage = mInputMessageView.getText().toString().trim();
         Log.e("test", "original message is =" + originalMessage); // log original message
         if (TextUtils.isEmpty(originalMessage)) {
@@ -312,11 +308,27 @@ public class MainFragment extends Fragment {
         // AES256 암호화
         String message = aes256MessageEncode(originalMessage);
         Log.e("test", "Encoded message is =" + message);
-
+        Log.e("test","Decoded message is="+ message+ originalMessage+aes256MessageDecode(message));
         // 암호화 되기 전의 메세지를 내 화면에 뿌려주자
         addMessage(mUsername, originalMessage);
 
-        mSocket.emit("new message", message);
+        client.get( SERVER_IP +"insertMessage/?message=" + message + "&messagefrom=" + mUsername, new AsyncHttpResponseHandler() {
+            @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+            @Override
+            public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
+                int statusCodeReceived = statusCode;
+                if(statusCodeReceived == 201){
+                    Log.e("status","success");
+                    return;
+                }
+                else{
+                    Log.e("status","error");
+                    return;
+                }
+            }
+            @Override
+            public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) { }
+        });
     }
 
 
@@ -394,182 +406,12 @@ public class MainFragment extends Fragment {
         mEncryptKey = null;
         // 얘도... 마찬가지...
         mEncryptSHA = "0000000000000000000000000000000000000000000000000000000000000000";
-        mSocket.disconnect();
-        mSocket.connect();
+//        mSocket.disconnect();
+//        mSocket.connect();
         startSignIn();
     }
 
     private void scrollToBottom() {
         mMessagesView.scrollToPosition(mAdapter.getItemCount() - 1);
     }
-
-    private Emitter.Listener onConnect = new Emitter.Listener() {
-        @Override
-        public void call(Object... args) {
-            getActivity().runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    if(!isConnected) {
-                        if(null!=mUsername)
-                            mSocket.emit("add user", mUsername);
-                        Toast.makeText(getActivity().getApplicationContext(), R.string.connect, Toast.LENGTH_LONG).show();
-                        isConnected = true;
-                    }
-                }
-            });
-        }
-    };
-
-    private Emitter.Listener onDisconnect = new Emitter.Listener() {
-        @Override
-        public void call(Object... args) {
-            getActivity().runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    Log.i(TAG, "diconnected");
-                    isConnected = false;
-                    Toast.makeText(getActivity().getApplicationContext(), R.string.disconnect, Toast.LENGTH_LONG).show();
-                }
-            });
-        }
-    };
-
-    private Emitter.Listener onConnectError = new Emitter.Listener() {
-        @Override
-        public void call(Object... args) {
-            getActivity().runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    Log.e(TAG, "Error connecting");
-                    Toast.makeText(getActivity().getApplicationContext(),
-                            R.string.error_connect, Toast.LENGTH_LONG).show();
-                }
-            });
-        }
-    };
-
-    private Emitter.Listener onNewMessage = new Emitter.Listener() {
-        @Override
-        public void call(final Object... args) {
-            getActivity().runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    JSONObject data = (JSONObject) args[0];
-                    String username;
-                    String encodedMessage;
-                    try {
-                        username = data.getString("username");
-                        encodedMessage = data.getString("message");
-                    } catch (JSONException e) {
-                        Log.e(TAG, e.getMessage());
-                        return;
-                    }
-
-                    String message = aes256MessageDecode(encodedMessage);
-
-                    removeTyping(username);
-                    addMessage(username, message);
-                }
-            });
-        }
-    };
-
-    private Emitter.Listener onUserJoined = new Emitter.Listener() {
-        @Override
-        public void call(final Object... args) {
-            getActivity().runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    JSONObject data = (JSONObject) args[0];
-                    String username;
-                    int numUsers;
-                    try {
-                        username = data.getString("username");
-                        numUsers = data.getInt("numUsers");
-                    } catch (JSONException e) {
-                        Log.e(TAG, e.getMessage());
-                        return;
-                    }
-
-                    addLog(getResources().getString(R.string.message_user_joined, username));
-                    addParticipantsLog(numUsers);
-                }
-            });
-        }
-    };
-
-    private Emitter.Listener onUserLeft = new Emitter.Listener() {
-        @Override
-        public void call(final Object... args) {
-            getActivity().runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    JSONObject data = (JSONObject) args[0];
-                    String username;
-                    int numUsers;
-                    try {
-                        username = data.getString("username");
-                        numUsers = data.getInt("numUsers");
-                    } catch (JSONException e) {
-                        Log.e(TAG, e.getMessage());
-                        return;
-                    }
-
-                    addLog(getResources().getString(R.string.message_user_left, username));
-                    addParticipantsLog(numUsers);
-                    removeTyping(username);
-                }
-            });
-        }
-    };
-
-    private Emitter.Listener onTyping = new Emitter.Listener() {
-        @Override
-        public void call(final Object... args) {
-            getActivity().runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    JSONObject data = (JSONObject) args[0];
-                    String username;
-                    try {
-                        username = data.getString("username");
-                    } catch (JSONException e) {
-                        Log.e(TAG, e.getMessage());
-                        return;
-                    }
-                    addTyping(username);
-                }
-            });
-        }
-    };
-
-    private Emitter.Listener onStopTyping = new Emitter.Listener() {
-        @Override
-        public void call(final Object... args) {
-            getActivity().runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    JSONObject data = (JSONObject) args[0];
-                    String username;
-                    try {
-                        username = data.getString("username");
-                    } catch (JSONException e) {
-                        Log.e(TAG, e.getMessage());
-                        return;
-                    }
-                    removeTyping(username);
-                }
-            });
-        }
-    };
-
-    private Runnable onTypingTimeout = new Runnable() {
-        @Override
-        public void run() {
-            if (!mTyping) return;
-
-            mTyping = false;
-            mSocket.emit("stop typing");
-        }
-    };
 }

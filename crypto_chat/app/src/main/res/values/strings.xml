@@ -12,10 +12,10 @@
     <string name="error_connect">연결에 실패했습니다</string>
     <!-- messages -->
     <string name="message_welcome">- AES256기반 암호화 채팅을 시작합니다 -</string>
-    <plurals name="message_participants">
-        <item quantity="one">방에 혼자있습니다</item>
-        <item quantity="other"> %d 명이 대화중입니다</item>
-    </plurals>
+    <!--<plurals name="message_participants">-->
+        <!--<item quantity="one">방에 혼자있습니다</item>-->
+        <!--<item quantity="other"> %d 명이 대화중입니다</item>-->
+    <!--</plurals>-->
     <string name="message_user_joined">%s 님이 들어왔습니다</string>
     <string name="message_user_left">%s 님이 나갔습니다</string>
     <string name="user_action_typing">님이 입력중입니다</string>

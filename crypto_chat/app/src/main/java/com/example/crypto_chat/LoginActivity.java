@@ -12,6 +12,7 @@ import android.view.View.OnClickListener;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.TextView;
 
 import com.loopj.android.http.AsyncHttpClient;
@@ -40,9 +41,9 @@ public class LoginActivity extends Activity {
     private String mUsername;
     private Socket mSocket;
     private String passwordHashInput;
+    private Intent intent;
 
     SHA256Util sha256Util = new SHA256Util();
-
 
     private static AsyncHttpClient client = new AsyncHttpClient();
 
@@ -50,7 +51,7 @@ public class LoginActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
-
+        intent=getIntent();
         ChatApplication app = (ChatApplication) getApplication();
         mSocket = app.getSocket();
 
@@ -76,20 +77,11 @@ public class LoginActivity extends Activity {
                 attemptLogin();
             }
         });
-
-        mSocket.on("login", onLogin);
     }
 
     @Override
-    protected void onDestroy() {
-        super.onDestroy();
-
-        mSocket.off("login", onLogin);
+    public void onBackPressed() {
     }
-
-
-
-
     private void attemptLogin() {
         // 에러를 리셋 (전에 에러가 나서 다시 실행할 경우 이미 에러가 set 되있음)
         mIdView.setError(null);
@@ -155,8 +147,10 @@ public class LoginActivity extends Activity {
                 mUsername = parsedName;
                 mEncryptKey = encryptKey;
 
-                mSocket.emit("add user", parsedName);
-
+                intent.putExtra("username", mUsername);
+                intent.putExtra("encrypt_key", mEncryptKey);
+                setResult(RESULT_OK, intent);
+                finish();
             }
 
             @Override
@@ -165,28 +159,6 @@ public class LoginActivity extends Activity {
             }
         });
     }
-
-    private Emitter.Listener onLogin = new Emitter.Listener() {
-        @Override
-        public void call(Object... args) {
-            JSONObject data = (JSONObject) args[0];
-
-            int numUsers;
-            try {
-                numUsers = data.getInt("numUsers");
-            } catch (JSONException e) {
-                return;
-            }
-
-            Intent intent = new Intent();
-            intent.putExtra("username", mUsername);
-            intent.putExtra("encrypt_key", mEncryptKey);
-            intent.putExtra("numUsers", numUsers);
-            intent.putExtra("loginStatus", "1");
-            setResult(RESULT_OK, intent);
-            finish();
-        }
-    };
 }
 
 

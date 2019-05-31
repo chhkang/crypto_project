@@ -16,6 +16,8 @@ public class Message {
         return mType;
     };
 
+    public void setMessage(String message) { mMessage = message; }
+
     public String getMessage() {
         return mMessage;
     };
